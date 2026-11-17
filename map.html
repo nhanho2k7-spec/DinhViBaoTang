@@ -1,0 +1,299 @@
+<!DOCTYPE html>
+<html lang="vi">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Dẫn Đường Tòa Nhà - Bản Đồ</title>
+    <style>
+        * { box-sizing: border-box; margin: 0; padding: 0; font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; }
+        body { background-color: #f4f7f6; color: #333; overflow: hidden; height: 100vh; width: 100vw; display: flex; }
+        
+        .sidebar { 
+            width: 420px; 
+            height: 100vh; 
+            background: #fff; 
+            box-shadow: 4px 0 15px rgba(0,0,0,0.15); 
+            display: flex; 
+            flex-direction: column; 
+            z-index: 999999; 
+            padding: 20px; 
+            overflow-y: auto; 
+            position: relative;
+        }
+        .sidebar-header { margin-bottom: 15px; background: #007bff; color: white; padding: 12px 15px; border-radius: 6px; display: flex; justify-content: space-between; align-items: center; }
+        
+        .section-title { font-size: 0.8rem; font-weight: bold; color: #555; margin: 12px 0 6px 0; text-transform: uppercase; }
+        
+        .start-group { display: flex; gap: 5px; margin-bottom: 8px; }
+        
+        /* Định dạng nút dạng Div chuẩn để click 100% ăn ngay */
+        .custom-btn {
+            display: block;
+            width: 100%;
+            padding: 12px;
+            margin-bottom: 8px;
+            background: #fff;
+            border: 2px solid #e0e0e0;
+            border-radius: 6px;
+            text-align: left;
+            font-size: 0.9rem;
+            font-weight: 600;
+            cursor: pointer !important;
+            transition: all 0.2s;
+        }
+        .custom-btn:hover { border-color: #007bff; background: #f0f7ff; }
+        .custom-btn.active { border-color: #007bff; background: #e7f1ff; color: #0056b3; }
+
+        .start-group .custom-btn {
+            text-align: center;
+            padding: 8px;
+            font-size: 0.8rem;
+            margin-bottom: 0;
+            flex: 1;
+        }
+        
+        .info-box { background: #f8f9fa; border-left: 4px solid #007bff; padding: 10px; border-radius: 4px; margin-top: 10px; font-size: 0.8rem; line-height: 1.3; }
+        
+        .action-btn { display: block; width: 100%; padding: 10px; margin-top: 10px; background: #17a2b8; color: white; border: none; border-radius: 6px; font-weight: bold; cursor: pointer; font-size: 0.9rem; text-align: center; }
+        
+        .map-container { flex: 1; height: 100vh; position: relative; background: #e9ecef; display: flex; justify-content: center; align-items: center; overflow: hidden; z-index: 1; }
+        
+        #map-group {
+            transform-origin: 500px 400px;
+            transition: transform 0.4s ease-out;
+        }
+
+        svg { width: 100%; height: 100%; max-height: 100vh; object-fit: contain; }
+        
+        .pulse-marker { animation: pulse 1.5s infinite; }
+        @keyframes pulse {
+            0% { transform: scale(0.95); opacity: 0.8; }
+            50% { transform: scale(1.3); opacity: 1; }
+            100% { transform: scale(0.95); opacity: 0.8; }
+        }
+    </style>
+</head>
+<body>
+
+    <div class="sidebar">
+        <div class="sidebar-header">
+            <div>
+                <h2 style="font-size: 1.1rem; margin-bottom: 2px;">🚪 Dẫn Đường Tòa Nhà</h2>
+                <p style="font-size: 0.7rem; opacity: 0.9;">Định vị & Di chuyển mượt mà</p>
+            </div>
+            <div onclick="window.location.href='index.html'" style="background: rgba(255,255,255,0.2); padding: 6px 10px; border-radius: 6px; font-size: 0.75rem; font-weight: bold; cursor: pointer;">
+                🔄 Quét lại QR
+            </div>
+        </div>
+        
+        <div class="section-title">2️⃣ Điểm xuất phát (đã nhận diện):</div>
+        <div class="start-group">
+            <div class="custom-btn active" id="btn-start-b104" onclick="setStartLocation('b104')">Phòng B104</div>
+            <div class="custom-btn" id="btn-start-b109" onclick="setStartLocation('b109')">Phòng B109</div>
+            <div class="custom-btn" id="btn-start-yte" onclick="setStartLocation('yte')">Tổ Y Tế</div>
+        </div>
+
+        <div class="section-title">3️⃣ Chọn phòng bạn muốn đi tới:</div>
+        <div class="custom-btn" id="btn-dest-b104" onclick="selectDestination('b104')">🚪 Phòng B104</div>
+        <div class="custom-btn" id="btn-dest-b109" onclick="selectDestination('b109')">🚪 Phòng B109</div>
+        <div class="custom-btn" id="btn-dest-yte" onclick="selectDestination('yte')">🏥 Tổ Y Tế</div>
+        
+        <div class="info-box" id="instruction-panel">
+            <strong>Trạng thái:</strong> Đã định vị xong điểm xuất phát. Hãy chọn phòng đích ở mục 3.
+        </div>
+        
+        <div class="action-btn" id="sim-btn" onclick="startSimulation()" style="display:none;">
+            ▶ Mô phỏng di chuyển trơn tru
+        </div>
+        <div class="action-btn" onclick="resetMapRotation()" style="background: #6c757d; margin-top: 5px; cursor: pointer;">
+            🔄 Đặt lại hướng bản đồ mặc định
+        </div>
+    </div>
+
+    <div class="map-container">
+        <svg id="main-svg" viewBox="0 0 1000 800">
+            <g id="map-group">
+                <image href="Sơ đồ mặt bằng hành lang tòa nhà.png" x="50" y="50" width="900" height="700" preserveAspectRatio="xMidYMid meet" />
+                <polyline id="route-line" points="" fill="none" stroke="#ff4757" stroke-width="6" stroke-linecap="round" stroke-linejoin="round" />
+                <g id="user-marker" transform="translate(405, 440)">
+                    <circle r="12" fill="#007bff" opacity="0.3" class="pulse-marker" />
+                    <circle r="6" fill="#007bff" stroke="#fff" stroke-width="2" />
+                </g>
+            </g>
+        </svg>
+    </div>
+
+    <script>
+        const pointsData = {
+            b104: { x: 405, y: 440, name: "Phòng B104" },
+            b109: { x: 520, y: 265, name: "Phòng B109" },
+            yte:  { x: 525, y: 565, name: "Tổ Y Tế" }
+        };
+
+        let currentPosKey = 'b104'; 
+        let currentDestKey = null;
+        let smoothRoutePoints = [];
+        let rawWaypoints = [];
+        let initialRotationAngle = 0;
+
+        window.onload = function() {
+            const urlParams = new URLSearchParams(window.location.search);
+            const startParam = urlParams.get('start');
+            if (startParam && pointsData[startParam]) {
+                setStartLocation(startParam);
+            } else {
+                setStartLocation('b104');
+            }
+        };
+
+        function setStartLocation(key) {
+            currentPosKey = key;
+            const pos = pointsData[key];
+            
+            ['b104', 'b109', 'yte'].forEach(k => {
+                const btn = document.getElementById(`btn-start-${k}`);
+                if (btn) {
+                    if (k === key) btn.classList.add('active');
+                    else btn.classList.remove('active');
+                }
+            });
+
+            const marker = document.getElementById('user-marker');
+            if (marker) {
+                marker.setAttribute('transform', `translate(${pos.x}, ${pos.y})`);
+            }
+            
+            const panel = document.getElementById('instruction-panel');
+            if (panel) {
+                panel.innerHTML = `<strong>Điểm xuất phát:</strong> ${pos.name}. Hãy chọn phòng muốn đến ở mục 3.`;
+            }
+            
+            if (currentDestKey) calculateRoute();
+        }
+
+        function selectDestination(destKey) {
+            currentDestKey = destKey;
+
+            ['b104', 'b109', 'yte'].forEach(k => {
+                const btn = document.getElementById(`btn-dest-${k}`);
+                if (btn) {
+                    if (k === destKey) btn.classList.add('active');
+                    else btn.classList.remove('active');
+                }
+            });
+
+            calculateRoute();
+        }
+
+        function generateSmoothWaypoints(waypoints) {
+            let detailedPoints = [];
+            for (let i = 0; i < waypoints.length - 1; i++) {
+                let p1 = waypoints[i];
+                let p2 = waypoints[i + 1];
+                let dist = Math.hypot(p2.x - p1.x, p2.y - p1.y);
+                let steps = Math.max(15, Math.floor(dist / 4));
+                
+                for (let s = 0; s <= steps; s++) {
+                    let t = s / steps;
+                    let x = p1.x + (p2.x - p1.x) * t;
+                    let y = p1.y + (p2.y - p1.y) * t;
+                    detailedPoints.push({ x: x, y: y });
+                }
+            }
+            return detailedPoints;
+        }
+
+        function calculateRoute() {
+            if (!currentPosKey || !currentDestKey) return;
+            
+            let startKey = currentPosKey;
+            let destKey = currentDestKey;
+
+            if (startKey === destKey) {
+                document.getElementById('route-line').setAttribute('points', '');
+                document.getElementById('instruction-panel').innerHTML = `<strong>Bạn đang ở cùng phòng này rồi!</strong>`;
+                document.getElementById('sim-btn').style.display = 'none';
+                return;
+            }
+
+            let waypoints = [];
+
+            if (startKey === 'b104' && destKey === 'b109') {
+                waypoints = [{x: 405, y: 440}, {x: 405, y: 360}, {x: 470, y: 360}, {x: 470, y: 265}, {x: 520, y: 265}];
+            }
+            else if (startKey === 'b109' && destKey === 'b104') {
+                waypoints = [{x: 520, y: 265}, {x: 470, y: 265}, {x: 470, y: 360}, {x: 405, y: 360}, {x: 405, y: 440}];
+            }
+            else if (startKey === 'b104' && destKey === 'yte') {
+                waypoints = [{x: 405, y: 440}, {x: 405, y: 625}, {x: 475, y: 625}, {x: 475, y: 565}, {x: 525, y: 565}];
+            }
+            else if (startKey === 'yte' && destKey === 'b104') {
+                waypoints = [{x: 525, y: 565}, {x: 475, y: 565}, {x: 475, y: 625}, {x: 405, y: 625}, {x: 405, y: 440}];
+            }
+            else if (startKey === 'b109' && destKey === 'yte') {
+                waypoints = [{x: 520, y: 265}, {x: 470, y: 265}, {x: 470, y: 360}, {x: 470, y: 565}, {x: 525, y: 565}];
+            }
+            else if (startKey === 'yte' && destKey === 'b109') {
+                waypoints = [{x: 525, y: 565}, {x: 470, y: 565}, {x: 470, y: 360}, {x: 470, y: 265}, {x: 520, y: 265}];
+            }
+
+            rawWaypoints = waypoints;
+            smoothRoutePoints = generateSmoothWaypoints(waypoints);
+
+            const pointsString = waypoints.map(p => `${p.x},${p.y}`).join(' ');
+            document.getElementById('route-line').setAttribute('points', pointsString);
+
+            if (waypoints.length >= 2) {
+                let p1 = waypoints[0];
+                let p2 = waypoints[1];
+                let angle = Math.atan2(p2.y - p1.y, p2.x - p1.x) * (180 / Math.PI);
+                initialRotationAngle = -angle - 90;
+                document.getElementById('map-group').style.transform = `rotate(${initialRotationAngle}deg)`;
+            }
+
+            document.getElementById('instruction-panel').innerHTML = `
+                <strong>Lộ trình từ ${pointsData[startKey].name} ➔ ${pointsData[destKey].name}:</strong><br>
+                - Vạch đỏ đã vẽ chuẩn xác theo hành lang thực tế[cite: 1].
+            `;
+            document.getElementById('sim-btn').style.display = 'block';
+        }
+
+        function startSimulation() {
+            if (smoothRoutePoints.length === 0) return;
+            let index = 0;
+            const marker = document.getElementById('user-marker');
+            let startPos = pointsData[currentPosKey]; 
+            
+            let timer = setInterval(() => {
+                if (index < smoothRoutePoints.length) {
+                    let p = smoothRoutePoints[index];
+                    marker.setAttribute('transform', `translate(${p.x}, ${p.y})`);
+                    
+                    for (let i = 0; i < rawWaypoints.length - 1; i++) {
+                        let p1 = rawWaypoints[i];
+                        let p2 = rawWaypoints[i + 1];
+                        if (p.x >= Math.min(p1.x, p2.x) - 5 && p.x <= Math.max(p1.x, p2.x) + 5 &&
+                            p.y >= Math.min(p1.y, p2.y) - 5 && p.y <= Math.max(p1.y, p2.y) + 5) {
+                            let angle = Math.atan2(p2.y - p1.y, p2.x - p1.x) * (180 / Math.PI);
+                            let rotationAngle = -angle - 90;
+                            document.getElementById('map-group').style.transform = `rotate(${rotationAngle}deg)`;
+                            break;
+                        }
+                    }
+
+                    index++;
+                } else {
+                    clearInterval(timer);
+                    alert("🎉 Mô phỏng hoàn tất! Chấm xanh đã về vị trí xuất phát và bản đồ quay về hướng di chuyển ban đầu.");
+                    marker.setAttribute('transform', `translate(${startPos.x}, ${startPos.y})`);
+                    document.getElementById('map-group').style.transform = `rotate(${initialRotationAngle}deg)`;
+                }
+            }, 120);
+        }
+
+        function resetMapRotation() {
+            document.getElementById('map-group').style.transform = `rotate(0deg)`;
+        }
+    </script>
+</body>
+</html>
