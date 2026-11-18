@@ -5,38 +5,22 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Quét Mã QR Định Vị - Indoor Wayfinding</title>
     <script src="https://cdn.tailwindcss.com"></script>
-    <script src="https://cdn.jsdelivr.net/npm/jsQR@1.4.0/dist/jsQR.js"></script>
+    <script src="https://unpkg.com/html5-qrcode" type="text/javascript"></script>
     <style>
         * { box-sizing: border-box; margin: 0; padding: 0; font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; }
-        @keyframes scanLine {
-            0% { top: 8%; opacity: 0.2; }
-            50% { top: 88%; opacity: 1; }
-            100% { top: 8%; opacity: 0.2; }
-        }
-        .laser-beam {
-            position: absolute; left: 6%; right: 6%; height: 3px;
-            background: linear-gradient(90deg, transparent, #10b981, #34d399, #10b981, transparent);
-            box-shadow: 0 0 12px #10b981, 0 0 20px #10b981;
-            border-radius: 999px; animation: scanLine 2.4s ease-in-out infinite;
-        }
         body { background-color: #090d16; min-height: 100vh; display: flex; justify-content: center; align-items: center; }
+        
         .click-btn {
-            width: 100%;
-            text-align: left;
-            background-color: rgba(30, 41, 59, 0.8);
-            border: 1px solid #334155;
-            padding: 12px;
-            border-radius: 12px;
-            display: flex;
-            align-items: center;
-            justify-content: space-between;
-            cursor: pointer !important;
+            width: 100%; text-align: left; background-color: rgba(30, 41, 59, 0.95);
+            border: 1px solid #334155; padding: 12px; border-radius: 12px;
+            display: flex; align-items: center; justify-content: space-between;
+            cursor: pointer !important; position: relative; z-index: 999;
             transition: all 0.2s ease;
         }
-        .click-btn:hover {
-            background-color: rgb(30, 41, 59);
-            border-color: #10b981;
-        }
+        .click-btn:active { background-color: #1e293b; transform: scale(0.98); }
+        
+        /* Đảm bảo khung reader không chặn thao tác click */
+        #reader { pointer-events: none; }
     </style>
 </head>
 <body>
@@ -61,44 +45,34 @@
         <main class="my-auto space-y-4 w-full py-2">
             <div class="text-center space-y-1">
                 <h2 class="text-base font-bold text-white">Quét mã QR tại cửa phòng</h2>
-                <p id="cam-status" class="text-xs text-slate-400">Bật camera để quét mã QR thực tế hoặc chọn nhanh bên dưới</p>
+                <p id="cam-status" class="text-xs text-slate-400">Đưa camera vào mã QR hoặc dùng chọn nhanh bên dưới</p>
             </div>
 
-            <!-- Khung camera thực tế -->
-            <div class="relative w-full aspect-square max-w-[220px] mx-auto bg-slate-900 rounded-3xl border-2 border-slate-800 overflow-hidden shadow-2xl flex items-center justify-center">
-                <video id="qr-video" class="w-full h-full object-cover hidden" playsinline></video>
-                <canvas id="qr-canvas" class="hidden"></canvas>
+            <!-- Khung chứa camera -->
+            <div class="relative w-full aspect-square max-w-[240px] mx-auto bg-slate-900 rounded-3xl border-2 border-slate-800 overflow-hidden shadow-2xl flex items-center justify-center">
+                <div id="reader" class="w-full h-full"></div>
 
-                <div id="camera-placeholder" class="p-4 text-center space-y-3 z-10">
-                    <div class="w-10 h-10 mx-auto rounded-xl bg-slate-800 border border-slate-700 flex items-center justify-center text-slate-400">
+                <div id="camera-placeholder" class="absolute inset-0 p-4 text-center flex flex-col items-center justify-center space-y-3 bg-slate-900 z-50">
+                    <div class="w-10 h-10 rounded-xl bg-slate-800 border border-slate-700 flex items-center justify-center text-slate-400">
                         <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                             <path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.8" d="M3 9a2 2 0 012-2h.93a2 2 0 001.664-.89l.812-1.22A2 2 0 0110.07 4h3.86a2 2 0 011.664.89l.812 1.22A2 2 0 0018.07 7H19a2 2 0 012 2v9a2 2 0 01-2 2H5a2 2 0 01-2-2V9z"/>
                             <path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.8" d="M15 13a3 3 0 11-6 0 3 3 0 016 0z"/>
                         </svg>
                     </div>
-                    <button type="button" onclick="toggleCamera()" class="bg-emerald-600 hover:bg-emerald-500 text-white text-xs font-semibold px-3 py-2 rounded-xl shadow-lg transition-all cursor-pointer">
-                        📷 Bật Camera Quét QR
-                    </button>
-                </div>
-
-                <div class="pointer-events-none absolute inset-3 z-20" id="laser-box" style="display:none;">
-                    <div class="absolute top-0 left-0 w-5 h-5 border-t-2 border-l-2 border-emerald-400 rounded-tl-lg"></div>
-                    <div class="absolute top-0 right-0 w-5 h-5 border-t-2 border-r-2 border-emerald-400 rounded-tr-lg"></div>
-                    <div class="absolute bottom-0 left-0 w-5 h-5 border-b-2 border-l-2 border-emerald-400 rounded-bl-lg"></div>
-                    <div class="absolute bottom-0 right-0 w-5 h-5 border-b-2 border-r-2 border-emerald-400 rounded-br-lg"></div>
-                    <div class="laser-beam"></div>
+                    <div class="flex flex-col gap-2 w-full px-4">
+                        <button type="button" onclick="startScanner()" class="bg-emerald-600 hover:bg-emerald-500 text-white text-xs font-semibold px-3 py-2.5 rounded-xl shadow-lg transition-all cursor-pointer">
+                            📷 Bật Camera Quét
+                        </button>
+                    </div>
                 </div>
             </div>
 
-            <!-- Các nút chọn điểm xuất phát thủ công (hoặc dự phòng) -->
-            <div class="bg-slate-900 border border-slate-800 rounded-2xl p-3.5 space-y-2.5">
-                <div class="flex items-center justify-between">
-                    <span class="text-[11px] font-bold uppercase tracking-wider text-emerald-400 flex items-center gap-1.5">
-                        <span class="w-2 h-2 rounded-full bg-emerald-400 animate-ping"></span>
-                        Hoặc chọn nhanh điểm xuất phát
-                    </span>
-                </div>
-
+            <!-- Các nút chọn nhanh điểm xuất phát -->
+            <div class="bg-slate-900 border border-slate-800 rounded-2xl p-3.5 space-y-2.5 relative z-50">
+                <span class="text-[11px] font-bold uppercase tracking-wider text-emerald-400 flex items-center gap-1.5">
+                    <span class="w-2 h-2 rounded-full bg-emerald-400 animate-ping"></span>
+                    Hoặc chọn nhanh điểm xuất phát
+                </span>
                 <div class="grid grid-cols-1 gap-2">
                     <button type="button" onclick="goToMap('b104')" class="click-btn">
                         <div style="display: flex; align-items: center; gap: 10px;">
@@ -110,7 +84,6 @@
                         </div>
                         <span style="font-size: 12px; color: #34d399; font-weight: 500;">Vào bản đồ ➔</span>
                     </button>
-
                     <button type="button" onclick="goToMap('b109')" class="click-btn">
                         <div style="display: flex; align-items: center; gap: 10px;">
                             <div style="width: 32px; height: 32px; background: rgba(168, 85, 247, 0.2); color: #c084fc; font-weight: bold; font-size: 12px; display: flex; align-items: center; justify-content: center; border-radius: 8px;">B109</div>
@@ -121,7 +94,6 @@
                         </div>
                         <span style="font-size: 12px; color: #34d399; font-weight: 500;">Vào bản đồ ➔</span>
                     </button>
-
                     <button type="button" onclick="goToMap('yte')" class="click-btn">
                         <div style="display: flex; align-items: center; gap: 10px;">
                             <div style="width: 32px; height: 32px; background: rgba(244, 63, 94, 0.2); color: #fb7185; font-weight: bold; font-size: 12px; display: flex; align-items: center; justify-content: center; border-radius: 8px;">YT</div>
@@ -139,67 +111,54 @@
 
     <script>
         const validLocations = { 'b104': 'Phòng B104', 'b109': 'Phòng B109', 'yte': 'Tổ Y Tế' };
+        let html5QrCode = null;
 
         function goToMap(key) {
-            stopCamera();
+            try {
+                if (html5QrCode) {
+                    html5QrCode.stop().catch(err => {});
+                }
+            } catch(e) {}
             window.location.href = 'map.html?start=' + key;
         }
 
-        let videoStream = null;
-        let cameraActive = false;
-        const videoElement = document.getElementById('qr-video');
-        const canvasElement = document.getElementById('qr-canvas');
-        const canvasContext = canvasElement.getContext('2d');
+        function onScanSuccess(decodedText, decodedResult) {
+            let text = decodedText.trim().toLowerCase();
+            let targetKey = null;
+            if (text.includes('b104')) targetKey = 'b104';
+            else if (text.includes('b109')) targetKey = 'b109';
+            else if (text.includes('yte') || text.includes('y tế')) targetKey = 'yte';
 
-        function toggleCamera() {
-            if (!cameraActive) startCamera();
-            else stopCamera();
-        }
-
-        function startCamera() {
-            navigator.mediaDevices.getUserMedia({ video: { facingMode: "environment" } })
-                .then(function(stream) {
-                    videoStream = stream;
-                    videoElement.srcObject = stream;
-                    videoElement.setAttribute("playsinline", true);
-                    videoElement.play();
-                    cameraActive = true;
-                    videoElement.classList.remove('hidden');
-                    document.getElementById('camera-placeholder').classList.add('hidden');
-                    document.getElementById('laser-box').style.display = 'block';
-                    document.getElementById('cam-status').innerText = "Đang quét mã QR thực tế qua camera...";
-                    requestAnimationFrame(scanQRCode);
-                })
-                .catch(function(err) { alert("Không thể mở camera! Hãy dùng các nút chọn nhanh bên dưới."); });
-        }
-
-        function stopCamera() {
-            if (videoStream) {
-                videoStream.getTracks().forEach(track => track.stop());
-                videoStream = null;
+            if (targetKey) {
+                goToMap(targetKey);
             }
-            cameraActive = false;
         }
 
-        function scanQRCode() {
-            if (!cameraActive) return;
-            if (videoElement.readyState === videoElement.HAVE_ENOUGH_DATA) {
-                canvasElement.height = videoElement.videoHeight;
-                canvasElement.width = videoElement.videoWidth;
-                canvasContext.drawImage(videoElement, 0, 0, canvasElement.width, canvasElement.height);
-                let imageData = canvasContext.getImageData(0, 0, canvasElement.width, canvasElement.height);
-                let code = jsQR(imageData.data, imageData.width, imageData.height, { inversionAttempts: "dontInvert" });
-
-                if (code) {
-                    let text = code.data.trim().toLowerCase();
-                    if (validLocations[text]) {
-                        alert("✅ Quét thành công vị trí: " + validLocations[text]);
-                        goToMap(text);
-                        return;
-                    }
-                }
+        function startScanner() {
+            const placeholder = document.getElementById('camera-placeholder');
+            if (placeholder) {
+                placeholder.style.display = 'none';
             }
-            requestAnimationFrame(scanQRCode);
+            
+            try {
+                html5QrCode = new Html5Qrcode("reader");
+                const config = { fps: 15, qrbox: { width: 180, height: 180 } };
+                
+                html5QrCode.start(
+                    { facingMode: "environment" }, 
+                    config, 
+                    onScanSuccess
+                ).catch(err => {
+                    html5QrCode.start({ facingMode: "user" }, config, onScanSuccess)
+                    .catch(error => {
+                        alert("Không thể mở camera. Vui lòng cấp quyền.");
+                        if (placeholder) placeholder.style.display = 'flex';
+                    });
+                });
+            } catch(e) {
+                alert("Lỗi khởi tạo camera.");
+                if (placeholder) placeholder.style.display = 'flex';
+            }
         }
     </script>
 </body>
